@@ -40,7 +40,7 @@ Of course, this kind of service already exists in the real life - it’s a learn
 - Your code will be verified against lint using ESLint
 
 ## Provided files
-* package.json
+**package.json**
 ```
 {
   "name": "files_manager",
@@ -87,7 +87,7 @@ Of course, this kind of service already exists in the real life - it’s a learn
   }
 }
 ```
-* .eslintrc.js
+**.eslintrc.js**
 ```
 module.exports = {
     env: {
@@ -127,7 +127,7 @@ module.exports = {
     ]
 };
 ```
-* babel.config.js
+**babel.config.js**
 ```
 module.exports = {
     presets: [
