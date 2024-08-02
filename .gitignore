@@ -1,1 +1,5 @@
 node_modules/
+babel.config.js
+main.js
+package.json
+package-lock.json
