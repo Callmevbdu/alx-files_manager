@@ -1,5 +1,6 @@
 import mongodb from 'mongodb';
 import Collection from 'mongodb/lib/collection';
+import envLoader from './env_loader';
 
 /**
  * The class DBClient.
@@ -13,12 +14,13 @@ class DBClient {
    * 	files_manager
    */
   constructor() {
+    envLoader();
     const host = process.env.DB_HOST || 'localhost';
     const port = process.env.DB_PORT || 27017;
     const database = process.env.DB_DATABASE || 'files_manager';
-    const dbLink = `mongodb://${host}:${port}/${database}`;
+    const dbURL = `mongodb://${host}:${port}/${database}`;
 
-    this.client = new mongodb.MongoClient(dbLink, { useUnifiedTopology: true });
+    this.client = new mongodb.MongoClient(dbURL, { useUnifiedTopology: true });
     this.client.connect();
   }
 
