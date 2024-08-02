@@ -1,5 +1,5 @@
 import AppController from '../controllers/AppController';
-// import UsersController from '../controllers/UsersController';
+import UsersController from '../controllers/UsersController';
 // import AuthController from '../controllers/AuthController';
 // import FilesController from '../controllers/FilesController';
 
@@ -11,6 +11,7 @@ const router = (app) => {
 
   route.get('/status', (request, response) => AppController.getStatus(request, response));
   route.get('/stats', (request, response) => AppController.getStats(request, response));
+  route.post('/users', (request, response) => UsersController.postNew(request, response));
 };
 
 export default router;
