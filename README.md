@@ -41,7 +41,7 @@ Of course, this kind of service already exists in the real life - it’s a learn
 
 ## Provided files
 * package.json
-'''
+```
 {
   "name": "files_manager",
   "version": "1.0.0",
@@ -86,6 +86,6 @@ Of course, this kind of service already exists in the real life - it’s a learn
     "sinon": "^7.5.0"
   }
 }
-'''
+```
 * 
 * 
