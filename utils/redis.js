@@ -1,7 +1,16 @@
 const redis = require('redis');
 const { promisify } = require('util');
 
+/**
+ * The class RedisClient.
+ */
 class RedisClient {
+  /**
+   * RedisClient should have:
+   * - The constructor that creates a client to Redis:
+   * - Any error of the redis client must be displayed in the console (you
+   * should use on('error') of the redis client).
+   */
   constructor() {
     this.client = redis.createClient();
     this.getAsync = promisify(this.client.get).bind(this.client);
