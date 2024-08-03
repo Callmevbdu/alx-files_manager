@@ -55,6 +55,7 @@ class RedisClient {
     await promisify(this.client.SETEX)
       .bind(this.client)(key, duration, value);
   }
+
   /**
    * An asynchronous function del that takes a string key as argument and
    * remove the value in Redis for this key.
