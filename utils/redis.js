@@ -1,9 +1,6 @@
 const redis = require('redis');
 const { promisify } = require('util');
 
-/**
- * A Redis Client
- */
 class RedisClient {
   /**
    * The class RedisClient. RedisClient should have:
