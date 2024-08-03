@@ -150,31 +150,28 @@ class FilesController {
    * @param {Response} res - Express response object.
    */
   static async getShow(req, res) {
-    const token = req.header('X-Token') || null;
-    if (!token) return res.status(401).send({ error: 'Unauthorized' });
+    const { user } = req;
+    const id = req.params ? req.params.id : NULL_ID;
+    const userId = user._id.toString();
+    const file = await (await dbClient.filesCollection())
+      .findOne({
+        _id: new mongoDBCore.BSON.ObjectId(isValidId(id) ? id : NULL_ID),
+        userId: new mongoDBCore.BSON.ObjectId(isValidId(userId) ? userId : NULL_ID),
+      });
 
-    const redisToken = await RedisClient.get(`auth_${token}`);
-    if (!redisToken) return res.status(401).send({ error: 'Unauthorized' });
-
-    const user = await DBClient.db
-      .collection('users')
-      .findOne({ _id: ObjectId(redisToken) });
-    if (!user) return res.status(401).send({ error: 'Unauthorized' });
-
-    const idFile = req.params.id || '';
-
-    const fileDocument = await DBClient.db
-      .collection('files')
-      .findOne({ _id: ObjectId(idFile), userId: user._id });
-    if (!fileDocument) return res.status(404).send({ error: 'Not found' });
-
-    return res.send({
-      id: fileDocument._id,
-      userId: fileDocument.userId,
-      name: fileDocument.name,
-      type: fileDocument.type,
-      isPublic: fileDocument.isPublic,
-      parentId: fileDocument.parentId,
+    if (!file) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    res.status(200).json({
+      id,
+      userId,
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: file.parentId === ROOT_FOLDER_ID.toString()
+        ? 0
+        : file.parentId.toString(),
     });
   }
 
@@ -197,46 +194,39 @@ class FilesController {
    * @param {Response} res - Express response object.
    */
   static async getIndex(req, res) {
-    const token = req.header('X-Token') || null;
-    if (!token) return res.status(401).send({ error: 'Unauthorized' });
+    const { user } = req;
+    const parentId = req.query.parentId || ROOT_FOLDER_ID.toString();
+    const page = /\d+/.test((req.query.page || '').toString())
+      ? Number.parseInt(req.query.page, 10)
+      : 0;
+    const filesFilter = {
+      userId: user._id,
+      parentId: parentId === ROOT_FOLDER_ID.toString()
+        ? parentId
+        : new mongoDBCore.BSON.ObjectId(isValidId(parentId) ? parentId : NULL_ID),
+    };
 
-    const redisToken = await RedisClient.get(`auth_${token}`);
-    if (!redisToken) return res.status(401).send({ error: 'Unauthorized' });
-
-    const user = await DBClient.db
-      .collection('users')
-      .findOne({ _id: ObjectId(redisToken) });
-    if (!user) return res.status(401).send({ error: 'Unauthorized' });
-
-    const parentId = req.query.parentId || 0;
-
-    const pagination = req.query.page || 0;
-
-    const aggregationMatch = { $and: [{ parentId }] };
-    let aggregateData = [
-      { $match: aggregationMatch },
-      { $skip: pagination * 20 },
-      { $limit: 20 },
-    ];
-    if (parentId === 0) aggregateData = [{ $skip: pagination * 20 }, { $limit: 20 }];
-
-    const files = await DBClient.db
-      .collection('files')
-      .aggregate(aggregateData);
-    const filesArray = [];
-    await files.forEach((item) => {
-      const fileItem = {
-        id: item._id,
-        userId: item.userId,
-        name: item.name,
-        type: item.type,
-        isPublic: item.isPublic,
-        parentId: item.parentId,
-      };
-      filesArray.push(fileItem);
-    });
-
-    return res.send(filesArray);
+    const files = await (await (await dbClient.filesCollection())
+      .aggregate([
+        { $match: filesFilter },
+        { $sort: { _id: -1 } },
+        { $skip: page * MAX_FILES_PER_PAGE },
+        { $limit: MAX_FILES_PER_PAGE },
+        {
+          $project: {
+            _id: 0,
+            id: '$_id',
+            userId: '$userId',
+            name: '$name',
+            type: '$type',
+            isPublic: '$isPublic',
+            parentId: {
+              $cond: { if: { $eq: ['$parentId', '0'] }, then: 0, else: '$parentId' },
+            },
+          },
+        },
+      ])).toArray();
+    res.status(200).json(files);
   }
 
   /**
