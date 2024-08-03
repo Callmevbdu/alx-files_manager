@@ -1,5 +1,4 @@
 import { v4 as uuidv4 } from 'uuid';
-import mongoDBCore from 'mongodb/lib/core';
 import RedisClient from '../utils/redis';
 import DBClient from '../utils/db';
 
@@ -8,37 +7,10 @@ const fs = require('fs');
 const mime = require('mime-types');
 const Bull = require('bull');
 
-const NULL_ID = Buffer.alloc(24, '0').toString('utf-8');
-const ROOT_FOLDER_ID = 0;
-const MAX_FILES_PER_PAGE = 20;
-
-const isValidId = (id) => {
-  const size = 24;
-  let i = 0;
-  const charRanges = [
-    [48, 57], // 0 - 9
-    [97, 102], // a - f
-    [65, 70], // A - F
-  ];
-  if (typeof id !== 'string' || id.length !== size) {
-    return false;
-  }
-  while (i < size) {
-    const c = id[i];
-    const code = c.charCodeAt(0);
-
-    if (!charRanges.some((range) => code >= range[0] && code <= range[1])) {
-      return false;
-    }
-    i += 1;
-  }
-  return true;
-};
-
 /**
- * A file FilesController.js that contains endpoints:
+ * A file FilesController.js that contains the new endpoint:
  */
-export default class FilesController {
+class FilesController {
   /**
    * POST /files should create a new file in DB and in disk:
    * - Retrieve the user based on the token:
@@ -178,28 +150,31 @@ export default class FilesController {
    * @param {Response} res - Express response object.
    */
   static async getShow(req, res) {
-    const { user } = req;
-    const id = req.params ? req.params.id : NULL_ID;
-    const userId = user._id.toString();
-    const file = await (await DBClient.filesCollection())
-      .findOne({
-        _id: new mongoDBCore.BSON.ObjectId(isValidId(id) ? id : NULL_ID),
-        userId: new mongoDBCore.BSON.ObjectId(isValidId(userId) ? userId : NULL_ID),
-      });
+    const token = req.header('X-Token') || null;
+    if (!token) return res.status(401).send({ error: 'Unauthorized' });
 
-    if (!file) {
-      res.status(404).json({ error: 'Not found' });
-      return;
-    }
-    res.status(200).json({
-      id,
-      userId,
-      name: file.name,
-      type: file.type,
-      isPublic: file.isPublic,
-      parentId: file.parentId === ROOT_FOLDER_ID.toString()
-        ? 0
-        : file.parentId.toString(),
+    const redisToken = await RedisClient.get(`auth_${token}`);
+    if (!redisToken) return res.status(401).send({ error: 'Unauthorized' });
+
+    const user = await DBClient.db
+      .collection('users')
+      .findOne({ _id: ObjectId(redisToken) });
+    if (!user) return res.status(401).send({ error: 'Unauthorized' });
+
+    const idFile = req.params.id || '';
+
+    const fileDocument = await DBClient.db
+      .collection('files')
+      .findOne({ _id: ObjectId(idFile), userId: user._id });
+    if (!fileDocument) return res.status(404).send({ error: 'Not found' });
+
+    return res.send({
+      id: fileDocument._id,
+      userId: fileDocument.userId,
+      name: fileDocument.name,
+      type: fileDocument.type,
+      isPublic: fileDocument.isPublic,
+      parentId: fileDocument.parentId,
     });
   }
 
@@ -222,39 +197,46 @@ export default class FilesController {
    * @param {Response} res - Express response object.
    */
   static async getIndex(req, res) {
-    const { user } = req;
-    const parentId = req.query.parentId || ROOT_FOLDER_ID.toString();
-    const page = /\d+/.test((req.query.page || '').toString())
-      ? Number.parseInt(req.query.page, 10)
-      : 0;
-    const filesFilter = {
-      userId: user._id,
-      parentId: parentId === ROOT_FOLDER_ID.toString()
-        ? parentId
-        : new mongoDBCore.BSON.ObjectId(isValidId(parentId) ? parentId : NULL_ID),
-    };
+    const token = req.header('X-Token') || null;
+    if (!token) return res.status(401).send({ error: 'Unauthorized' });
 
-    const files = await (await (await DBClient.filesCollection())
-      .aggregate([
-        { $match: filesFilter },
-        { $sort: { _id: -1 } },
-        { $skip: page * MAX_FILES_PER_PAGE },
-        { $limit: MAX_FILES_PER_PAGE },
-        {
-          $project: {
-            _id: 0,
-            id: '$_id',
-            userId: '$userId',
-            name: '$name',
-            type: '$type',
-            isPublic: '$isPublic',
-            parentId: {
-              $cond: { if: { $eq: ['$parentId', '0'] }, then: 0, else: '$parentId' },
-            },
-          },
-        },
-      ])).toArray();
-    res.status(200).json(files);
+    const redisToken = await RedisClient.get(`auth_${token}`);
+    if (!redisToken) return res.status(401).send({ error: 'Unauthorized' });
+
+    const user = await DBClient.db
+      .collection('users')
+      .findOne({ _id: ObjectId(redisToken) });
+    if (!user) return res.status(401).send({ error: 'Unauthorized' });
+
+    const parentId = req.query.parentId || 0;
+
+    const pagination = req.query.page || 0;
+
+    const aggregationMatch = { $and: [{ parentId }] };
+    let aggregateData = [
+      { $match: aggregationMatch },
+      { $skip: pagination * 20 },
+      { $limit: 20 },
+    ];
+    if (parentId === 0) aggregateData = [{ $skip: pagination * 20 }, { $limit: 20 }];
+
+    const files = await DBClient.db
+      .collection('files')
+      .aggregate(aggregateData);
+    const filesArray = [];
+    await files.forEach((item) => {
+      const fileItem = {
+        id: item._id,
+        userId: item.userId,
+        name: item.name,
+        type: item.type,
+        isPublic: item.isPublic,
+        parentId: item.parentId,
+      };
+      filesArray.push(fileItem);
+    });
+
+    return res.send(filesArray);
   }
 
   /**
@@ -413,3 +395,5 @@ export default class FilesController {
     }
   }
 }
+
+module.exports = FilesController;
