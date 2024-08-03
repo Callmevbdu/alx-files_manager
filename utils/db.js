@@ -4,17 +4,17 @@ const host = process.env.DB_HOST || 'localhost';
 const port = process.env.DB_PORT || 27017;
 const database = process.env.DB_DATABASE || 'files_manager';
 const url = `mongodb://${host}:${port}`;
-//
+
 /**
  * The class DBClient.
  */
 class DBClient {
   /**
    * The constructor that creates a client to MongoDB:
-   * 	- host: from the environment variable DB_HOST or default: localhost
-   * 	- port: from the environment variable DB_PORT or default: 27017
-   * 	- database: from the environment variable DB_DATABASE or default:
-   * 	files_manager
+   * host: from the environment variable DB_HOST or default: localhost
+   * port: from the environment variable DB_PORT or default: 27017
+   * database: from the environment variable DB_DATABASE or default:
+   * files_manager
    */
   constructor() {
     MongoClient.connect(url, (err, client) => {
