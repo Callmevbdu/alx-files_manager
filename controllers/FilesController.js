@@ -239,6 +239,16 @@ class FilesController {
     return res.send(filesArray);
   }
 
+  /**
+   * PUT /files/:id/publish should set isPublic to true on the file document based on the ID:
+   * - Retrieve the user based on the token:
+   * + If not found, return an error Unauthorized with a status code 401
+   * - If no file document is linked to the user and the ID passed as parameter,
+   * return an error Not found with a status code 404
+   * - Otherwise:
+   * + Update the value of isPublic to true
+   * + And return the file document with a status code 200
+   */
   static async putPublish(req, res) {
     const token = req.header('X-Token') || null;
     if (!token) return res.status(401).send({ error: 'Unauthorized' });
@@ -275,6 +285,16 @@ class FilesController {
     });
   }
 
+  /**
+   * PUT /files/:id/unpublish should set isPublic to false on the file document based on the ID:
+   * - Retrieve the user based on the token:
+   * + If not found, return an error Unauthorized with a status code 401
+   * - If no file document is linked to the user and the ID passed as parameter, return an error
+   * Not found with a status code 404
+   * - Otherwise:
+   * + Update the value of isPublic to false
+   * + And return the file document with a status code 200
+   */
   static async putUnpublish(req, res) {
     const token = req.header('X-Token') || null;
     if (!token) return res.status(401).send({ error: 'Unauthorized' });
