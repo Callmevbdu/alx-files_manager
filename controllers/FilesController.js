@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import mongoDBCore from 'mongodb/lib/core';
 import RedisClient from '../utils/redis';
 import DBClient from '../utils/db';
 
@@ -7,10 +8,37 @@ const fs = require('fs');
 const mime = require('mime-types');
 const Bull = require('bull');
 
+const NULL_ID = Buffer.alloc(24, '0').toString('utf-8');
+const ROOT_FOLDER_ID = 0;
+const MAX_FILES_PER_PAGE = 20;
+
+const isValidId = (id) => {
+  const size = 24;
+  let i = 0;
+  const charRanges = [
+    [48, 57], // 0 - 9
+    [97, 102], // a - f
+    [65, 70], // A - F
+  ];
+  if (typeof id !== 'string' || id.length !== size) {
+    return false;
+  }
+  while (i < size) {
+    const c = id[i];
+    const code = c.charCodeAt(0);
+
+    if (!charRanges.some((range) => code >= range[0] && code <= range[1])) {
+      return false;
+    }
+    i += 1;
+  }
+  return true;
+};
+
 /**
- * A file FilesController.js that contains the new endpoint:
+ * A file FilesController.js that contains endpoints:
  */
-class FilesController {
+export default class FilesController {
   /**
    * POST /files should create a new file in DB and in disk:
    * - Retrieve the user based on the token:
@@ -153,7 +181,7 @@ class FilesController {
     const { user } = req;
     const id = req.params ? req.params.id : NULL_ID;
     const userId = user._id.toString();
-    const file = await (await dbClient.filesCollection())
+    const file = await (await DBClient.filesCollection())
       .findOne({
         _id: new mongoDBCore.BSON.ObjectId(isValidId(id) ? id : NULL_ID),
         userId: new mongoDBCore.BSON.ObjectId(isValidId(userId) ? userId : NULL_ID),
@@ -206,7 +234,7 @@ class FilesController {
         : new mongoDBCore.BSON.ObjectId(isValidId(parentId) ? parentId : NULL_ID),
     };
 
-    const files = await (await (await dbClient.filesCollection())
+    const files = await (await (await DBClient.filesCollection())
       .aggregate([
         { $match: filesFilter },
         { $sort: { _id: -1 } },
@@ -385,5 +413,3 @@ class FilesController {
     }
   }
 }
-
-module.exports = FilesController;
