@@ -248,6 +248,8 @@ class FilesController {
    * - Otherwise:
    * + Update the value of isPublic to true
    * + And return the file document with a status code 200
+   * @param {Request} req - Express request object.
+   * @param {Response} res - Express response object.
    */
   static async putPublish(req, res) {
     const token = req.header('X-Token') || null;
@@ -294,6 +296,8 @@ class FilesController {
    * - Otherwise:
    * + Update the value of isPublic to false
    * + And return the file document with a status code 200
+   * @param {Request} req - Express request object.
+   * @param {Response} res - Express response object.
    */
   static async putUnpublish(req, res) {
     const token = req.header('X-Token') || null;
@@ -334,6 +338,21 @@ class FilesController {
     });
   }
 
+  /**
+   * GET /files/:id/data should return the content of the file document based on the ID:
+   * - If no file document is linked to the ID passed as parameter, return an error Not found
+   * with a status code 404
+   * - If the file document (folder or file) is not public (isPublic: false) and no user
+   * authenticate or not the owner of the file, return an error Not found with a status code 404
+   * - If the type of the file document is folder, return an error A folder doesn't have content
+   * with a status code 400
+   * - If the file is not locally present, return an error Not found with a status code 404
+   * - Otherwise:
+   * + By using the module mime-types, get the MIME-type based on the name of the file
+   * + Return the content of the file with the correct MIME-type
+   * @param {Request} req - Express request object.
+   * @param {Response} res - Express response object.
+   */
   static async getFile(req, res) {
     const idFile = req.params.id || '';
     const size = req.query.size || 0;
