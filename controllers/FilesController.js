@@ -7,12 +7,14 @@ const fs = require('fs');
 const mime = require('mime-types');
 const Bull = require('bull');
 
+/**
+ * A file FilesController.js that contains the new endpoint:
+ */
 class FilesController {
   /**
-   * A file FilesController.js that contains the new endpoint:
    * POST /files should create a new file in DB and in disk:
    * - Retrieve the user based on the token:
-   * - If not found, return an error Unauthorized with a status code 401
+   * + If not found, return an error Unauthorized with a status code 401
    * - To create a file, you must specify:
    * + name: as filename
    * + type: either folder, file or image
@@ -46,6 +48,8 @@ class FilesController {
    * * parentId: same as the value received - if not present: 0
    * * localPath: for a type=file|image, the absolute path to the file save in local
    * + Return the new file with a status code 201
+   * @param {Request} req - Express request object.
+   * @param {Response} res - Express response object.
    */
   static async postUpload(req, res) {
     const fileQueue = new Bull('fileQueue');
@@ -135,6 +139,16 @@ class FilesController {
     });
   }
 
+  /**
+   * GET /files/:id should retrieve the file document based on the ID:
+   * - Retrieve the user based on the token:
+   * + If not found, return an error Unauthorized with a status code 401
+   * - If no file document is linked to the user and the ID passed as parameter,
+   * return an error Not found with a status code 404
+   * - Otherwise, return the file document
+   * @param {Request} req - Express request object.
+   * @param {Response} res - Express response object.
+   */
   static async getShow(req, res) {
     const token = req.header('X-Token') || null;
     if (!token) return res.status(401).send({ error: 'Unauthorized' });
@@ -164,6 +178,24 @@ class FilesController {
     });
   }
 
+  /**
+   * GET /files should retrieve all users file documents for a specific parentId and with
+   * pagination:
+   * - Retrieve the user based on the token:
+   * + If not found, return an error Unauthorized with a status code 401
+   * - Based on the query parameters parentId and page, return the list of file document
+   * + parentId:
+   * * No validation of parentId needed - if the parentId is not linked to any user folder, returns
+   * an empty list
+   * * By default, parentId is equal to 0 = the root
+   * + Pagination:
+   * * Each page should be 20 items max
+   * * page query parameter starts at 0 for the first page. If equals to 1, it means it’s the
+   * second page (form the 20th to the 40th), etc…
+   * * Pagination can be done directly by the aggregate of MongoDB
+   * @param {Request} req - Express request object.
+   * @param {Response} res - Express response object.
+   */
   static async getIndex(req, res) {
     const token = req.header('X-Token') || null;
     if (!token) return res.status(401).send({ error: 'Unauthorized' });
